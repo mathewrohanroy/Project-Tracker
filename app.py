@@ -1,5 +1,8 @@
 """
 app.py  — entry point, routing only.
+  data_layer.py    ← Supabase + local JSON, bcrypt auth, config
+  ui_components.py ← CSS + HTML helpers
+  pages.py         ← one function per page
 """
 
 import streamlit as st
@@ -24,6 +27,7 @@ st.set_page_config(
 ui.inject_css()
 
 
+# ── Login wall ────────────────────────────────────────────────
 def show_login():
     st.markdown("""
     <div style="max-width:420px;margin:4rem auto;text-align:center;">
@@ -41,37 +45,27 @@ def show_login():
     _, col, _ = st.columns([1, 2, 1])
     with col:
         team = dl.get_team_names()
-        name = st.selectbox("Who are you?", ["— select —"] + team)
+        name = st.selectbox("Who are you?", ["— select —"] + team, label_visibility="visible")
         pwd  = st.text_input("Password", type="password", placeholder="Your personal password…")
 
         if st.button("Enter Hub →", use_container_width=True, type="primary"):
             if name == "— select —":
                 st.error("Please select your name.")
+            elif not dl.check_password(name, pwd):
+                st.error("Wrong password.")
             else:
-                # ── DEBUG — shows exactly what's happening ──
-                sb = dl.get_supabase()
-                st.info(f"Supabase connected: {sb is not None}")
+                dl.set_current_user(name)
+                st.rerun()
 
-                all_users = dl.load_users_db()
-                st.info(f"Users in DB: {len(all_users)} — names: {[u['name'] for u in all_users]}")
-
-                user_record = dl.get_user_by_name(name)
-                st.info(f"User '{name}' found: {user_record is not None}")
-
-                if user_record:
-                    stored_hash = user_record.get("password_hash", "")
-                    st.info(f"Hash stored: '{stored_hash[:30]}...'")
-                    result = dl.check_password(name, pwd)
-                    st.info(f"check_password result: {result}")
-
-                # ── actual login logic ──
-                if not dl.check_password(name, pwd):
-                    st.error("Wrong password.")
-                else:
-                    dl.set_current_user(name)
-                    st.rerun()
+        st.markdown(
+            "<div style='color:#475569;font-size:0.75rem;text-align:center;margin-top:0.75rem;'>"
+            "First time? Ask Rohan for your temporary password, then change it in My Account."
+            "</div>",
+            unsafe_allow_html=True
+        )
 
 
+# ── Main ──────────────────────────────────────────────────────
 def main():
     current_user = dl.get_current_user()
 
@@ -80,7 +74,7 @@ def main():
         return
 
     connected = dl.sheets_connected()
-    page = ui.sidebar_ui(current_user, connected)
+    page      = ui.sidebar_ui(current_user, connected)
 
     if page == "__logout__":
         dl.set_current_user(None)
