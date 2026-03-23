@@ -1,0 +1,40 @@
+{
+  "categories": [
+    "Analysis",
+    "Data Collection",
+    "Literature Review",
+    "Report Writing",
+    "Meeting Prep",
+    "Experiments",
+    "Other"
+  ],
+  "paper_tags": [
+    "Wavelet",
+    "Fourier/STFT",
+    "Rheology",
+    "Gelation",
+    "Blood Coagulation",
+    "Signal Processing",
+    "Methods",
+    "Background",
+    "Key Paper"
+  ],
+  "paper_status_options": [
+    "To Read",
+    "Reading",
+    "Read",
+    "Cited"
+  ],
+  "task_status_options": [
+    "To Do",
+    "In Progress",
+    "In Review",
+    "Done",
+    "Blocked"
+  ],
+  "priorities": [
+    "High",
+    "Medium",
+    "Low"
+  ]
+}
