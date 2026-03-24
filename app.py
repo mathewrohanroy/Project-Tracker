@@ -19,8 +19,8 @@ from pages import (
 )
 
 st.set_page_config(
-    page_title="Gel Squad — Project Hub",
-    page_icon="🌊",
+    page_title="Project Hub",
+    
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -31,10 +31,10 @@ ui.inject_css()
 def show_login():
     st.markdown("""
     <div style="max-width:420px;margin:4rem auto;text-align:center;">
-        <div style="font-size:3.5rem;margin-bottom:0.75rem;">🌊</div>
+        <div style="font-size:3.5rem;margin-bottom:0.75rem;"></div>
         <h2 style="color:#e2e8f0;font-size:1.7rem;font-weight:700;
                    letter-spacing:-0.02em;margin-bottom:0.3rem;">
-            Gel Squad Hub
+            Squad Hub
         </h2>
         <p style="color:#475569;font-size:0.85rem;">
             Haemograph Capstone — Project Management &amp; Literature Tracker
