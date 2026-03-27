@@ -89,6 +89,12 @@ section[data-testid="stSidebar"] {
 section[data-testid="stSidebar"] * { color: var(--text) !important; }
 section[data-testid="stSidebar"] .stRadio label { font-size: 0.9rem !important; }
 
+/* ── Hide sidebar collapse button — sidebar is always open ── */
+button[data-testid="collapsedControl"] { display: none !important; }
+section[data-testid="stSidebar"] > div:first-child button[kind="header"] { display: none !important; }
+/* Hide the chevron/collapse arrow inside the sidebar */
+section[data-testid="stSidebar"] button[data-testid="baseButton-header"] { display: none !important; }
+
 /* ── Cards ── */
 .card {
     background: var(--card);
@@ -182,6 +188,20 @@ div[data-testid="stExpander"] {
 div[data-testid="stExpander"]:hover {
     border-color: var(--blue-l) !important;
 }
+
+/* ── Additional: hide ALL sidebar toggle buttons aggressively ── */
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"],
+button[aria-label="Close sidebar"],
+button[aria-label="Open sidebar"] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* ── Sidebar toggle via session state ── */
+.sidebar-hidden section[data-testid="stSidebar"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -339,42 +359,44 @@ def sheets_status_pill(connected: bool) -> str:
 
 
 def sidebar_ui(current_user: str, connected: bool) -> str:
-    """Render sidebar content, return selected page label."""
+    """Render sidebar content, return selected page key."""
+    nav = {
+        "📊 Dashboard":          "Dashboard",
+        "✅ Task Board":         "Task Board",
+        "📚 Literature Tracker": "Literature Tracker",
+        "➕ Add Task":           "Add Task",
+        "📄 Add Paper":          "Add Paper",
+        "👤 My Account":         "My Account",
+    }
+    try:
+        import data_layer as _dl
+        if _dl.is_admin(current_user):
+            nav["🛠 Admin Panel"] = "Admin Panel"
+    except Exception:
+        pass
+
     with st.sidebar:
         st.markdown(f"""
-        <div style="padding:1rem 0 1.5rem;">
-            <div style="font-size:1.35rem;font-weight:700;color:#e2e8f0;letter-spacing:-0.02em;">🌊 Gel Squad</div>
-            <div style="font-size:0.72rem;color:#475569;margin-top:0.15rem;">Haemograph Capstone 2026</div>
+        <div style="padding:1rem 0 1.25rem;">
+            <div style="font-size:1.35rem;font-weight:700;color:#e2e8f0;
+                        letter-spacing:-0.02em;">🌊 Gel Squad</div>
+            <div style="font-size:0.72rem;color:#475569;margin-top:0.15rem;">
+                Haemograph Capstone 2026</div>
         </div>
         <div style="background:#0c1f0c;border:1px solid #166534;border-radius:8px;
                     padding:0.55rem 0.9rem;margin-bottom:0.75rem;">
-            <div style="font-size:0.68rem;color:#4ade80;text-transform:uppercase;letter-spacing:0.08em;">Logged in as</div>
-            <div style="font-size:0.9rem;font-weight:600;color:#86efac;">{current_user.split()[0]}</div>
+            <div style="font-size:0.68rem;color:#4ade80;text-transform:uppercase;
+                        letter-spacing:0.08em;">Logged in as</div>
+            <div style="font-size:0.9rem;font-weight:600;color:#86efac;">
+                {current_user.split()[0]}</div>
         </div>
         <div style="margin-bottom:1.25rem;">{sheets_status_pill(connected)}</div>
         """, unsafe_allow_html=True)
 
-        nav_items = [
-            "📊  Dashboard",
-            "✅  Task Board",
-            "📚  Literature Tracker",
-            "➕  Add Task",
-            "📄  Add Paper",
-            "👤  My Account",
-        ]
-        # Import here to avoid circular import at module level
-        try:
-            import data_layer as _dl
-            if _dl.is_admin(current_user):
-                nav_items.append("🛠  Admin Panel")
-        except Exception:
-            pass
-
-        page = st.radio("Navigation", nav_items, label_visibility="collapsed")
-
+        selected = st.radio("Navigation", list(nav.keys()), label_visibility="collapsed")
 
         st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
         if st.button("Log out", use_container_width=True):
             return "__logout__"
 
-        return page.split("  ", 1)[1].strip()
+        return nav[selected]
