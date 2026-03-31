@@ -29,6 +29,7 @@ TASKS_FILE  = os.path.join(DATA_DIR, "tasks.json")
 PAPERS_FILE = os.path.join(DATA_DIR, "papers.json")
 USERS_FILE  = os.path.join(DATA_DIR, "users.json")
 CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
+CHARTER_FILE = os.path.join(DATA_DIR, "charter.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 DEFAULT_CONFIG = {
@@ -340,31 +341,41 @@ def load_tasks():
 
 
 def add_task(task):
+    task = _norm_task(task)
     tasks = load_tasks()
+    tasks = [t for t in tasks if t.get("id") != task.get("id")]
     tasks.append(task)
     _save_json(TASKS_FILE, tasks)
     sb = get_supabase()
     if sb:
         try:
-            sb.table("tasks").insert(task).execute()
+            sb.table("tasks").upsert(task).execute()
         except Exception:
             pass
 
 
 def update_task(task_id, updates):
     tasks = load_tasks()
+    updated_task = None
     for t in tasks:
         if t["id"] == task_id:
             t.update(updates)
             t["updated"] = str(date.today())
+            updated_task = _norm_task(t)
+            t.update(updated_task)
+            break
     _save_json(TASKS_FILE, tasks)
     sb = get_supabase()
-    if sb:
+    if sb and updated_task:
         try:
-            updates["updated"] = str(date.today())
-            sb.table("tasks").update(updates).eq("id", task_id).execute()
+            sb.table("tasks").upsert(updated_task).execute()
         except Exception:
-            pass
+            try:
+                fallback_updates = dict(updates)
+                fallback_updates["updated"] = str(date.today())
+                sb.table("tasks").update(fallback_updates).eq("id", task_id).execute()
+            except Exception:
+                pass
 
 
 def delete_task(task_id):
@@ -396,29 +407,38 @@ def load_papers():
 
 
 def add_paper(paper):
+    paper = _norm_paper(paper)
     papers = load_papers()
+    papers = [p for p in papers if p.get("id") != paper.get("id")]
     papers.append(paper)
     _save_json(PAPERS_FILE, papers)
     sb = get_supabase()
     if sb:
         try:
-            sb.table("papers").insert(paper).execute()
+            sb.table("papers").upsert(paper).execute()
         except Exception:
             pass
 
 
 def update_paper(paper_id, updates):
     papers = load_papers()
+    updated_paper = None
     for p in papers:
         if p["id"] == paper_id:
             p.update(updates)
+            updated_paper = _norm_paper(p)
+            p.update(updated_paper)
+            break
     _save_json(PAPERS_FILE, papers)
     sb = get_supabase()
-    if sb:
+    if sb and updated_paper:
         try:
-            sb.table("papers").update(updates).eq("id", paper_id).execute()
+            sb.table("papers").upsert(updated_paper).execute()
         except Exception:
-            pass
+            try:
+                sb.table("papers").update(updates).eq("id", paper_id).execute()
+            except Exception:
+                pass
 
 
 def delete_paper(paper_id):
@@ -430,6 +450,119 @@ def delete_paper(paper_id):
             sb.table("papers").delete().eq("id", paper_id).execute()
         except Exception:
             pass
+
+
+
+
+# ─────────────────────────────────────────────────────────────
+# PROJECT CHARTER
+# ─────────────────────────────────────────────────────────────
+
+def _default_charter():
+    return {
+        "id": "main",
+        "project_name": "Gel Squad Capstone",
+        "project_owner": "",
+        "project_summary": "",
+        "objective": "",
+        "scope": "",
+        "success_metrics": "",
+        "deliverables": "",
+        "risks": "",
+        "notes": "",
+        "start_date": None,
+        "target_date": None,
+        "updated": str(date.today()),
+        "milestones": [],
+    }
+
+
+def _norm_milestone(row):
+    return {
+        "id": row.get("id", new_id()),
+        "title": row.get("title", ""),
+        "owner": row.get("owner", ""),
+        "description": row.get("description", "") or "",
+        "status": row.get("status", "Planned") or "Planned",
+        "due": row.get("due") or None,
+    }
+
+
+def _norm_charter(row):
+    base = _default_charter()
+    base.update({
+        "id": row.get("id", "main"),
+        "project_name": row.get("project_name", base["project_name"]),
+        "project_owner": row.get("project_owner", "") or "",
+        "project_summary": row.get("project_summary", "") or "",
+        "objective": row.get("objective", "") or "",
+        "scope": row.get("scope", "") or "",
+        "success_metrics": row.get("success_metrics", "") or "",
+        "deliverables": row.get("deliverables", "") or "",
+        "risks": row.get("risks", "") or "",
+        "notes": row.get("notes", "") or "",
+        "start_date": row.get("start_date") or None,
+        "target_date": row.get("target_date") or None,
+        "updated": str(row.get("updated", date.today())),
+        "milestones": [_norm_milestone(m) for m in (row.get("milestones") or [])],
+    })
+    return base
+
+
+def load_charter():
+    sb = get_supabase()
+    if sb:
+        try:
+            res = sb.table("project_charter").select("*").limit(1).execute()
+            if res.data:
+                charter = _norm_charter(res.data[0])
+                _save_json(CHARTER_FILE, charter)
+                return charter
+        except Exception:
+            pass
+    stored = _load_json(CHARTER_FILE, _default_charter())
+    if isinstance(stored, list):
+        stored = stored[0] if stored else _default_charter()
+    return _norm_charter(stored)
+
+
+def save_charter(updates: dict):
+    charter = load_charter()
+    charter.update(updates or {})
+    charter["milestones"] = [_norm_milestone(m) for m in charter.get("milestones", [])]
+    charter["updated"] = str(date.today())
+    _save_json(CHARTER_FILE, charter)
+    sb = get_supabase()
+    if sb:
+        try:
+            sb.table("project_charter").upsert(charter).execute()
+        except Exception:
+            pass
+    return charter
+
+
+def add_milestone(milestone: dict):
+    charter = load_charter()
+    ms = _norm_milestone(milestone)
+    charter.setdefault("milestones", []).append(ms)
+    save_charter(charter)
+    return ms
+
+
+def update_milestone(milestone_id: str, updates: dict):
+    charter = load_charter()
+    milestones = charter.get("milestones", [])
+    for m in milestones:
+        if m.get("id") == milestone_id:
+            m.update(updates or {})
+    charter["milestones"] = [_norm_milestone(m) for m in milestones]
+    save_charter(charter)
+
+
+def delete_milestone(milestone_id: str):
+    charter = load_charter()
+    charter["milestones"] = [m for m in charter.get("milestones", []) if m.get("id") != milestone_id]
+    save_charter(charter)
 
 
 # ─────────────────────────────────────────────────────────────
